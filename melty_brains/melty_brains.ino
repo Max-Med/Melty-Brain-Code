@@ -50,10 +50,10 @@ void loop() //Main Loop
   T_prev=0;
   sei(); // Reactivate interrupts. 
   
-  
-  double heading = headingSet(rc[1], rc[3]);  //should return angle in radians of vectore (rc[1],rc[3])
-  int translationalSpeed = speedSet(rc[1], rc[3]);  //should return magnitude of vector (rc[1],rc[3])
-  int throttle= map(rc[6], 270, 480, 0, 255);  //should map rc[6] between 0 and 255
+    
+  double heading = headingSet(rc[0], rc[2]);  //should return angle in radians of vectore (rc[1],rc[3]) 
+  int translationalSpeed = speedSet(rc[0], rc[2]);  //should return magnitude of vector (rc[1],rc[3])
+  int throttle= map(rc[5], 270, 480, 0, 255);  //should map rc[6] between 0 and 255
   /*controlMotor(throttle,heading, currentAngle, translationalSpeed, Motor1);
   controlMotor(throttle,heading, currentAngle, translationalSpeed, Motor2);  
   controlMotor(throttle,heading, currentAngle, translationalSpeed, Motor3); */ 
@@ -97,7 +97,8 @@ ISR(PCINT0_vect) {
 double headingSet(int x, int y){ 
   int trueX = map(x, 270, 480, -1000, 1000);
   int trueY = map(y, 270, 480, -1000, 1000);
-  double fraction = abs (trueY/trueX);
+  float YoverX = trueY/trueX ;
+  double fraction = abs (YoverX);
   if (trueY >= 0 && trueX >= 0) {
     return (4.71239 + atan(fraction));
   }
@@ -115,7 +116,7 @@ double headingSet(int x, int y){
 int speedSet(int x, int y){
   int trueX = map(x, 270, 480, -1000, 1000);
   int trueY = map(y, 270, 480, -1000, 1000);
-  int modulus= (sqrt(sq(trueX)^2 + sq(trueY)));
+  int modulus= (sqrt(sq(trueX) + sq(trueY)));
   return ( map(modulus, 0, 1415, 0, 255));
 
 }
