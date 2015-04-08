@@ -51,7 +51,7 @@ void loop() //Main Loop
   sei(); // Reactivate interrupts. 
   
     
-  double heading = headingSet(rc[0], rc[2]);  //should return angle in radians of vectore (rc[1],rc[3]) 
+  float heading = headingSet(rc[0], rc[2]);  //should return angle in radians of vectore (rc[1],rc[3]) 
   int translationalSpeed = speedSet(rc[0], rc[2]);  //should return magnitude of vector (rc[1],rc[3])
   int throttle= map(rc[5], 270, 480, 0, 255);  //should map rc[6] between 0 and 255
   /*controlMotor(throttle,heading, currentAngle, translationalSpeed, Motor1);
@@ -70,7 +70,7 @@ void loop() //Main Loop
   Serial.print(rc[5]);
   Serial.print("\t"); 
   
-  Serial.print(heading*57.3);
+  Serial.print(heading*57.300);
   Serial.print("\t");
   Serial.print(translationalSpeed);
   Serial.print("\t");  
@@ -94,30 +94,33 @@ ISR(PCINT0_vect) {
   }
 }
  
-double headingSet(int x, int y){ 
+float headingSet(int x, int y){ 
+  float angle;
   int trueX = map(x, 270, 480, -1000, 1000);
   int trueY = map(y, 270, 480, -1000, 1000);
   float YoverX = trueY/trueX ;
-  double fraction = abs (YoverX);
+  float fraction = abs (YoverX);
   if (trueY >= 0 && trueX >= 0) {
-    return (4.71239 + atan(fraction));
+    angle= 4.71239 + atan(fraction);
   }
-  else if (trueY < 0 && trueX > 0){ 
-    return (4.71239 - atan(fraction));
+  else if (trueY <= 0 && trueX >= 0){ 
+    angle = 4.71239 - atan(fraction);
   }
-  else if (trueY < 0 && trueX < 0){
-    return ( 1.57080 + atan(fraction));
+  else if (trueY <= 0 && trueX <= 0){
+    angle = 1.57080 + atan(fraction);
   }
-  else if (trueY > 0 && trueX < 0){
-    return ( 1.57080 - atan(fraction));
+  else if (trueY >= 0 && trueX <= 0){
+    angle = 1.57080 - atan(fraction);
   }   
+  return(angle);
 }
 
 int speedSet(int x, int y){
   int trueX = map(x, 270, 480, -1000, 1000);
   int trueY = map(y, 270, 480, -1000, 1000);
   int modulus= (sqrt(sq(trueX) + sq(trueY)));
-  return ( map(modulus, 0, 1415, 0, 255));
+  int modulusMap = map(modulus, 0, 1415, 0, 255);
+  return ( modulusMap);
 
 }
 
