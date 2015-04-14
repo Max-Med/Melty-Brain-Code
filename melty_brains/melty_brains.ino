@@ -1,15 +1,20 @@
 #include "avr/interrupt.h"
 
 unsigned int rc[6];
-float timer_period;
+float timer_period, previousAngle, time;
 unsigned int T, T_reset, T_prev, T_offset, T_min, T_max;
 unsigned short T_pointer=0;
 unsigned int tics_before_reset;
+int previousRc[5], throttle;
+unsigned long previousMillis;  
+float radius = 0.045;
+float fraction= 0.000;
  
 void setup()
 { 
   Serial.begin(115200);
-  
+  pinMode (2, OUTPUT);
+  digitalWrite(2, HIGH);
   for (int i=8; i<14; i++) {
     pinMode(i,INPUT);
   }
@@ -36,6 +41,7 @@ void setup()
   tics_before_reset = (unsigned int) (0.10/timer_period); // 0.1 sec control loop (25000 tics)
   
   Serial.println("Read RC receiver test");
+  pinMode(6, OUTPUT);
   delay(1000);
 }
 
@@ -52,29 +58,45 @@ void loop() //Main Loop
   
     
   float heading = headingSet(rc[0], rc[2]);  //should return angle in radians of vectore (rc[1],rc[3]) 
-  int translationalSpeed = speedSet(rc[0], rc[2]);  //should return magnitude of vector (rc[1],rc[3])
-  int throttle= map(rc[5], 270, 480, 0, 255);  //should map rc[6] between 0 and 255
+  long translationalSpeed = speedSet(rc[0], rc[2]);  //should return magnitude of vector (rc[1],rc[3])
+  if (rc[5]< previousRc[5] + 10 && rc[5] > previousRc[5] - 10) {
+     throttle= map(rc[5], 268, 483, 0, 255);  //should map rc[6] between 0 and 255
+   }
+  previousRc[5]=rc[5]; 
+  time = millis()- previousMillis;
+  previousMillis= millis();
+  float currentAngle  = currentAngleSet(analogRead(A0), rc[4], previousAngle, time); 
+  previousAngle = currentAngle;
+  if (currentAngle > 5.4978 || currentAngle < 0.7854){
+    digitalWrite(2, HIGH);
+  }
+  else{
+    digitalWrite(2, LOW);
+  }
+  
   /*controlMotor(throttle,heading, currentAngle, translationalSpeed, Motor1);
   controlMotor(throttle,heading, currentAngle, translationalSpeed, Motor2);  
   controlMotor(throttle,heading, currentAngle, translationalSpeed, Motor3); */ 
-  Serial.print(rc[0]);
-  Serial.print("\t");
-  Serial.print(rc[1]);
-  Serial.print("\t");  
-  Serial.print(rc[2]);
-  Serial.print("\t");
-  Serial.print(rc[3]);
-  Serial.print("\t");
-  Serial.print(rc[4]);
-  Serial.print("\t");
-  Serial.print(rc[5]);
-  Serial.print("\t"); 
   
   Serial.print(heading*57.300);
   Serial.print("\t");
   Serial.print(translationalSpeed);
   Serial.print("\t");  
+  Serial.print(currentAngle*57.300);
+  Serial.print("\t");  
+  Serial.print(map(analogRead(A0), 0, 1000, -49.34, 97.07));
+  Serial.print("\t");  
   Serial.println(throttle); 
+  if( throttle > 20){
+    analogWrite (6, throttle);
+    analogWrite (5, throttle);
+    analogWrite (3, throttle);
+  }
+  else {
+    analogWrite (6, 0);
+    analogWrite (5, 0);
+    analogWrite (3, 0);
+  }
 }
 
 
@@ -96,8 +118,8 @@ ISR(PCINT0_vect) {
  
 float headingSet(int x, int y){ 
   float angle;
-  int trueX = map(x, 270, 480, -1000, 1000);
-  int trueY = map(y, 270, 480, -1000, 1000);
+  float trueX = map(x, 270, 480, -1000, 1000);
+  float trueY = map(y, 270, 480, -1000, 1000);
   float YoverX = trueY/trueX ;
   float fraction = abs (YoverX);
   if (trueY >= 0 && trueX >= 0) {
@@ -115,13 +137,20 @@ float headingSet(int x, int y){
   return(angle);
 }
 
-int speedSet(int x, int y){
-  int trueX = map(x, 270, 480, -1000, 1000);
-  int trueY = map(y, 270, 480, -1000, 1000);
-  int modulus= (sqrt(sq(trueX) + sq(trueY)));
-  int modulusMap = map(modulus, 0, 1415, 0, 255);
+long speedSet(int x, int y){
+  long trueX = map(x, 270, 480, -1000, 1000);
+  long trueY = map(y, 270, 480, -1000, 1000);
+  long modulus= (sqrt(sq(trueX) + sq(trueY)));
+  long modulusMap = map(modulus, 0, 1415, 0, 255);
   return ( modulusMap);
 
+}
+
+float currentAngleSet(int x, int y, float z, float t){
+ // long acceleration = map(x, 0, 1000, -49.34, 97.07);
+  long rudder = map(y, 270, 480, -1000, 1000);
+  float currentAngle = fmod((z + sqrt(1.75/radius)*(t/1000)), 6.2831);  
+  return (currentAngle + fraction*rudder);
 }
 
 //void controlMotor(int throttle, double heading, double currentAngle, int translationalSpeed, int Motor){
