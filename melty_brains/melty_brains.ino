@@ -1,13 +1,13 @@
 #include "avr/interrupt.h"
 
 unsigned int rc[6];
-float timer_period, previousAngle, time;
+float timer_period, previousAngle, time, currentAngle;
 unsigned int T, T_reset, T_prev, T_offset, T_min, T_max;
 unsigned short T_pointer=0;
 unsigned int tics_before_reset;
 int previousRc[5], throttle;
 unsigned long previousMillis;  
-float radius = 0.045;
+float radius = 0.03;
 float fraction= 0.000;
  
 void setup()
@@ -65,7 +65,7 @@ void loop() //Main Loop
   previousRc[5]=rc[5]; 
   time = millis()- previousMillis;
   previousMillis= millis();
-  float currentAngle  = currentAngleSet(analogRead(A0), rc[4], previousAngle, time); 
+  currentAngle  = currentAngleSet(analogRead(A0), rc[4], previousAngle, time); 
   previousAngle = currentAngle;
   if (currentAngle > 5.4978 || currentAngle < 0.7854){
     digitalWrite(2, HIGH);
@@ -74,9 +74,11 @@ void loop() //Main Loop
     digitalWrite(2, LOW);
   }
   
-  /*controlMotor(throttle,heading, currentAngle, translationalSpeed, Motor1);
-  controlMotor(throttle,heading, currentAngle, translationalSpeed, Motor2);  
-  controlMotor(throttle,heading, currentAngle, translationalSpeed, Motor3); */ 
+  
+  controlMotor(throttle,heading, currentAngle, translationalSpeed, 3);
+  
+  controlMotor(throttle,heading, currentAngle, translationalSpeed, 5);  
+  controlMotor(throttle,heading, currentAngle, translationalSpeed, 6);
   
   Serial.print(heading*57.300);
   Serial.print("\t");
@@ -84,19 +86,21 @@ void loop() //Main Loop
   Serial.print("\t");  
   Serial.print(currentAngle*57.300);
   Serial.print("\t");  
-  Serial.print(map(analogRead(A0), 0, 1000, -49.34, 97.07));
+  Serial.print(map(analogRead(A0), 0, 1000, -4934, 9707));
+  Serial.print("\t");  
+  Serial.print(time);  
   Serial.print("\t");  
   Serial.println(throttle); 
-  if( throttle > 20){
-    analogWrite (6, throttle);
+  /*if( throttle > 20){
+    //analogWrite (6, throttle);
     analogWrite (5, throttle);
     analogWrite (3, throttle);
   }
   else {
-    analogWrite (6, 0);
+    //analogWrite (6, 0);
     analogWrite (5, 0);
     analogWrite (3, 0);
-  }
+  } */
 }
 
 
@@ -147,12 +151,35 @@ long speedSet(int x, int y){
 }
 
 float currentAngleSet(int x, int y, float z, float t){
- // long acceleration = map(x, 0, 1000, -49.34, 97.07);
-  long rudder = map(y, 270, 480, -1000, 1000);
-  float currentAngle = fmod((z + sqrt(1.75/radius)*(t/1000)), 6.2831);  
-  return (currentAngle + fraction*rudder);
+  int acceleration = map(x, 0, 1000, -4934, 9707);
+  int rudder = map(y, 270, 480, -1000, 1000);
+  int value = (z*1000 + (sqrt(acceleration/(100*radius))*t));
+  int currentAngle = (value % 6283);  
+  return ((currentAngle/1000.0) + fraction*rudder);
 }
 
-//void controlMotor(int throttle, double heading, double currentAngle, int translationalSpeed, int Motor){
+void controlMotor(int throttle, double heading, double currentAngle, int translationalSpeed, int motor){
+  int offset;
+  if (motor== 3){ 
+    offset = 0;
+  }
+  if (motor == 5){
+    offset = 2094;
+  }
+  if (motor == 6){
+    offset = 4188;
+  }
   
+  int currentAngleTimes1000 = currentAngle*1000;
+  if (translationalSpeed < 50 && throttle > 20){
+    analogWrite (motor, throttle);
+  }
+  
+  else if ((((currentAngleTimes1000 + offset - 1570 + 6283) % 6281) < heading*1000) && ((currentAngleTimes1000 + offset + 1570 + 6283) % 6283) > heading*1000) {
+    analogWrite (motor, 0);
+  }
+  else {
+    analogWrite (motor, throttle);
+  }
+}
 
